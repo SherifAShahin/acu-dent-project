@@ -42,6 +42,22 @@ interface AnalysisResult {
   recommendation: boolean;
 }
 
+const DEFAULT_BACKEND_URL = "https://sherof-acu-dental-backend.hf.space";
+const GEMINI_VALIDATION_TIMEOUT_MS = 15_000;
+
+const isAnalysisResult = (value: unknown): value is AnalysisResult => {
+  if (!value || typeof value !== "object") return false;
+
+  const result = value as Record<string, unknown>;
+  return (
+    typeof result.condition === "string" &&
+    typeof result.confidence === "string" &&
+    typeof result.explanation === "string" &&
+    typeof result.treatment === "string" &&
+    typeof result.recommendation === "boolean"
+  );
+};
+
 type ActiveTab = "check" | "diseases" | "team" | "portfolio";
 
 const navItems: { id: ActiveTab; label: string }[] = [
@@ -570,24 +586,29 @@ export default function App() {
     }
   };
 
-  const analyzeWithGemini = async (): Promise<AnalysisResult | null> => {
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const validateWithGemini = async (
+    localResult: AnalysisResult,
+  ): Promise<AnalysisResult | null> => {
+    console.log("Gemini validation started");
 
+    try {
+      if (!image || !process.env.GEMINI_API_KEY) {
+        throw new Error("Gemini API key or image is unavailable");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `
-        Analyze this dental image and identify any potential issues.
-        Provide the response in JSON format with the following structure:
-        {
-          "condition": "Name of the detected condition in Arabic",
-          "confidence": "A percentage score (0-100)",
-          "explanation": "A simple explanation of the issue for a patient in Arabic.",
-          "treatment": "Suggested treatment or advice in Arabic.",
-          "recommendation": "Whether they should visit a dentist immediately (boolean)"
-        }
-        If the image is not a mouth or teeth, return a condition of "صورة غير صالحة".
+        You are a validation and enrichment layer, not the primary diagnostic model.
+        Review the dental image together with the primary local model result below.
+        Keep the response patient-friendly and entirely in Arabic. Return valid JSON only.
+        Preserve the local model diagnosis unless the image clearly makes the result unusable.
+        You may enrich the explanation and treatment advice without overstating certainty.
+
+        Primary local model result:
+        ${JSON.stringify(localResult)}
       `;
 
-      const response = await ai.models.generateContent({
+      const validationRequest = ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           {
@@ -596,7 +617,7 @@ export default function App() {
               {
                 inlineData: {
                   mimeType: "image/jpeg",
-                  data: image!.split(",")[1],
+                  data: image.split(",")[1],
                 },
               },
             ],
@@ -624,22 +645,38 @@ export default function App() {
         },
       });
 
-      const resultData = JSON.parse(response.text || "{}");
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error("Gemini validation timed out")),
+          GEMINI_VALIDATION_TIMEOUT_MS,
+        );
+      });
+      const response = await Promise.race([validationRequest, timeout]);
+      const resultData: unknown = JSON.parse(response.text || "{}");
+
+      if (!isAnalysisResult(resultData)) {
+        throw new Error("Gemini returned an invalid response");
+      }
+
+      console.log("Gemini validation succeeded");
       return resultData;
-    } catch (err: any) {
-      // console.warn("Gemini API failed, will try local model:", err.message);
+    } catch (err: unknown) {
+      console.warn("Gemini validation failed", err);
       return null;
     }
   };
 
   const analyzeWithLocalModel = async (): Promise<AnalysisResult | null> => {
+    console.log("Local model started");
+
     try {
       if (!image) return null;
 
       const API_BASE_URL =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+        import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+        DEFAULT_BACKEND_URL;
 
-      // console.log("🧠 Local model URL:", `${API_BASE_URL}/predict`);
+      console.log("Backend URL used", API_BASE_URL);
 
       const blobData = await fetch(image).then((res) => res.blob());
 
@@ -656,17 +693,23 @@ export default function App() {
         throw new Error(`Local model error: ${response.status} - ${errorText}`);
       }
 
-      const resultData = await response.json();
-
-      return {
-        condition: resultData.condition || "غير محدد",
-        confidence: resultData.confidence || "0",
-        explanation: resultData.explanation || "لم يتم العثور على شرح للحالة.",
-        treatment: resultData.treatment || "يرجى مراجعة طبيب الأسنان.",
-        recommendation: Boolean(resultData.recommendation),
+      const resultData: Record<string, unknown> = await response.json();
+      const localResult: AnalysisResult = {
+        condition: String(resultData.condition || "غير محدد"),
+        confidence: String(resultData.confidence || "0"),
+        explanation: String(
+          resultData.explanation || "لم يتم العثور على شرح للحالة.",
+        ),
+        treatment: String(
+          resultData.treatment || "يرجى مراجعة طبيب الأسنان.",
+        ),
+        recommendation: resultData.recommendation === true,
       };
-    } catch (err: any) {
-      // console.error("Local model failed:", err.message);
+
+      console.log("Local result received", localResult);
+      return localResult;
+    } catch (err: unknown) {
+      console.error("Local model failed", err);
       return null;
     }
   };
@@ -679,28 +722,17 @@ export default function App() {
     setResult(null);
 
     try {
-      // console.log("🔍 Attempting analysis with Gemini API...");
+      const localResult = await analyzeWithLocalModel();
 
-      let resultData = await analyzeWithGemini();
-
-      if (!resultData) {
-        // console.log("⚠️  Gemini failed, switching to local model...");
-        resultData = await analyzeWithLocalModel();
-      } else {
-        // console.log("✅ Analysis successful with Gemini");
+      if (!localResult) {
+        setError("تعذر تحليل الصورة. تأكد من وضوح الصورة وحاول مرة أخرى.");
+        return;
       }
 
-      if (resultData) {
-        if (resultData.condition && resultData.confidence !== undefined) {
-          setResult(resultData);
-        } else {
-          throw new Error("Invalid response format");
-        }
-      } else {
-        setError("فشل التحليل في كلا الخيارين. تأكد من أن الصورة واضحة.");
-      }
-    } catch (err: any) {
-      // console.error("Analysis error:", err);
+      const validatedResult = await validateWithGemini(localResult);
+      setResult(validatedResult ?? localResult);
+    } catch (err: unknown) {
+      console.error("Analysis error", err);
       setError("حدث خطأ أثناء التحليل. يرجى المحاولة مرة أخرى.");
     } finally {
       setIsAnalyzing(false);
