@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, useRef, ChangeEvent } from "react";
 import {
   Camera,
   Upload,
@@ -29,9 +29,9 @@ import {
   Microscope,
   HeartPulse,
   Building2,
-  Crown
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+  Crown,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI, Type } from "@google/genai";
 
 interface AnalysisResult {
@@ -42,96 +42,132 @@ interface AnalysisResult {
   recommendation: boolean;
 }
 
-type ActiveTab = 'check' | 'diseases' | 'team' | 'portfolio';
+type ActiveTab = "check" | "diseases" | "team" | "portfolio";
 
 const navItems: { id: ActiveTab; label: string }[] = [
-  { id: 'check', label: 'الفحص الذكي' },
-  { id: 'diseases', label: 'الأمراض الشائعة' },
-  { id: 'team', label: 'فريق المشروع' },
-  { id: 'portfolio', label: 'عن المشروع' }
+  { id: "check", label: "الفحص الذكي" },
+  { id: "diseases", label: "الأمراض الشائعة" },
+  { id: "team", label: "فريق المشروع" },
+  { id: "portfolio", label: "عن المشروع" },
 ];
 
 const commonDiseases = [
   {
-    title: 'تسوس الأسنان',
-    tag: 'الأكثر انتشارًا',
+    title: "تسوس الأسنان",
+    tag: "الأكثر انتشارًا",
     icon: ShieldAlert,
-    color: 'bg-red-100 text-red-600',
-    description: 'يحدث التسوس عندما تتراكم البكتيريا وبقايا الطعام على سطح الأسنان، فتنتج أحماضًا تضعف طبقة المينا وتسبب ثقوبًا أو ألمًا مع الوقت.',
-    symptoms: ['ألم عند تناول السكريات', 'حساسية مع البارد أو الساخن', 'ظهور بقع داكنة أو ثقوب صغيرة'],
-    advice: 'تنظيف الأسنان مرتين يوميًا، استخدام الخيط الطبي، وتقليل السكريات يساعد في الوقاية، أما الألم المستمر فيحتاج إلى زيارة الطبيب.'
+    color: "bg-red-100 text-red-600",
+    description:
+      "يحدث التسوس عندما تتراكم البكتيريا وبقايا الطعام على سطح الأسنان، فتنتج أحماضًا تضعف طبقة المينا وتسبب ثقوبًا أو ألمًا مع الوقت.",
+    symptoms: [
+      "ألم عند تناول السكريات",
+      "حساسية مع البارد أو الساخن",
+      "ظهور بقع داكنة أو ثقوب صغيرة",
+    ],
+    advice:
+      "تنظيف الأسنان مرتين يوميًا، استخدام الخيط الطبي، وتقليل السكريات يساعد في الوقاية، أما الألم المستمر فيحتاج إلى زيارة الطبيب.",
   },
   {
-    title: 'التهاب اللثة',
-    tag: 'علامة إنذار مبكرة',
+    title: "التهاب اللثة",
+    tag: "علامة إنذار مبكرة",
     icon: HeartPulse,
-    color: 'bg-pink-100 text-pink-600',
-    description: 'التهاب اللثة هو تهيج واحمرار يحدث غالبًا بسبب تراكم البلاك حول الأسنان، وقد يتطور إذا لم يتم علاجه إلى مشاكل أعمق في الأنسجة الداعمة للأسنان.',
-    symptoms: ['نزيف أثناء التفريش', 'احمرار أو تورم اللثة', 'رائحة فم غير محببة'],
-    advice: 'العناية اليومية وتنظيف الجير عند طبيب الأسنان من أهم خطوات السيطرة على الالتهاب قبل أن يصبح أكثر خطورة.'
+    color: "bg-pink-100 text-pink-600",
+    description:
+      "التهاب اللثة هو تهيج واحمرار يحدث غالبًا بسبب تراكم البلاك حول الأسنان، وقد يتطور إذا لم يتم علاجه إلى مشاكل أعمق في الأنسجة الداعمة للأسنان.",
+    symptoms: [
+      "نزيف أثناء التفريش",
+      "احمرار أو تورم اللثة",
+      "رائحة فم غير محببة",
+    ],
+    advice:
+      "العناية اليومية وتنظيف الجير عند طبيب الأسنان من أهم خطوات السيطرة على الالتهاب قبل أن يصبح أكثر خطورة.",
   },
   {
-    title: 'تراكم الجير',
-    tag: 'طبقة صلبة',
+    title: "تراكم الجير",
+    tag: "طبقة صلبة",
     icon: ClipboardList,
-    color: 'bg-amber-100 text-amber-600',
-    description: 'الجير هو بلاك متصلب يلتصق بسطح الأسنان وحول خط اللثة. لا يمكن إزالته بالفرشاة فقط بعد أن يتصلب، ويحتاج إلى تنظيف متخصص.',
-    symptoms: ['خشونة على سطح الأسنان', 'اصفرار أو ترسبات واضحة', 'التهاب أو نزيف اللثة'],
-    advice: 'الفحص الدوري وتنظيف الجير كل فترة يحافظان على صحة اللثة ويقللان احتمالية حدوث التهاب أو رائحة فم.'
+    color: "bg-amber-100 text-amber-600",
+    description:
+      "الجير هو بلاك متصلب يلتصق بسطح الأسنان وحول خط اللثة. لا يمكن إزالته بالفرشاة فقط بعد أن يتصلب، ويحتاج إلى تنظيف متخصص.",
+    symptoms: [
+      "خشونة على سطح الأسنان",
+      "اصفرار أو ترسبات واضحة",
+      "التهاب أو نزيف اللثة",
+    ],
+    advice:
+      "الفحص الدوري وتنظيف الجير كل فترة يحافظان على صحة اللثة ويقللان احتمالية حدوث التهاب أو رائحة فم.",
   },
   {
-    title: 'تصبغات الأسنان',
-    tag: 'تغير في اللون',
+    title: "تصبغات الأسنان",
+    tag: "تغير في اللون",
     icon: Sparkles,
-    color: 'bg-purple-100 text-purple-600',
-    description: 'تظهر التصبغات نتيجة عوامل مثل الشاي والقهوة والتدخين وبعض الأطعمة أو ضعف العناية اليومية، وقد تكون سطحية أو عميقة حسب السبب.',
-    symptoms: ['بقع صفراء أو بنية', 'اختلاف لون سن عن آخر', 'فقدان لمعان الأسنان'],
-    advice: 'تحسين العناية اليومية، تقليل مسببات التصبغ، واستشارة الطبيب لاختيار التنظيف أو التبييض المناسب حسب الحالة.'
+    color: "bg-purple-100 text-purple-600",
+    description:
+      "تظهر التصبغات نتيجة عوامل مثل الشاي والقهوة والتدخين وبعض الأطعمة أو ضعف العناية اليومية، وقد تكون سطحية أو عميقة حسب السبب.",
+    symptoms: [
+      "بقع صفراء أو بنية",
+      "اختلاف لون سن عن آخر",
+      "فقدان لمعان الأسنان",
+    ],
+    advice:
+      "تحسين العناية اليومية، تقليل مسببات التصبغ، واستشارة الطبيب لاختيار التنظيف أو التبييض المناسب حسب الحالة.",
   },
   {
-    title: 'قرح الفم',
-    tag: 'ألم مزعج',
+    title: "قرح الفم",
+    tag: "ألم مزعج",
     icon: Activity,
-    color: 'bg-blue-100 text-blue-600',
-    description: 'قرح الفم هي تقرحات صغيرة قد تظهر داخل الخد أو على اللثة أو اللسان. غالبًا تكون مؤقتة، لكنها قد تسبب ألمًا أثناء الأكل أو الكلام.',
-    symptoms: ['بقعة بيضاء أو صفراء محاطة باحمرار', 'حرقان أو ألم موضعي', 'صعوبة في تناول الطعام الحار أو الحمضي'],
-    advice: 'تجنب الأطعمة الحارة والحمضية، والحفاظ على نظافة الفم. إذا استمرت القرحة أكثر من أسبوعين يجب مراجعة الطبيب.'
+    color: "bg-blue-100 text-blue-600",
+    description:
+      "قرح الفم هي تقرحات صغيرة قد تظهر داخل الخد أو على اللثة أو اللسان. غالبًا تكون مؤقتة، لكنها قد تسبب ألمًا أثناء الأكل أو الكلام.",
+    symptoms: [
+      "بقعة بيضاء أو صفراء محاطة باحمرار",
+      "حرقان أو ألم موضعي",
+      "صعوبة في تناول الطعام الحار أو الحمضي",
+    ],
+    advice:
+      "تجنب الأطعمة الحارة والحمضية، والحفاظ على نظافة الفم. إذا استمرت القرحة أكثر من أسبوعين يجب مراجعة الطبيب.",
   },
   {
-    title: 'نقص عدد الأسنان',
-    tag: 'حالة نمو',
+    title: "نقص عدد الأسنان",
+    tag: "حالة نمو",
     icon: Microscope,
-    color: 'bg-emerald-100 text-emerald-600',
-    description: 'نقص عدد الأسنان يعني عدم ظهور بعض الأسنان الدائمة بسبب عوامل وراثية أو مشاكل في النمو. قد يؤثر على شكل الابتسامة أو ترتيب الأسنان.',
-    symptoms: ['فراغات واضحة بين الأسنان', 'تأخر ظهور سن دائم', 'اختلاف في ترتيب الأسنان'],
-    advice: 'يحتاج التشخيص إلى فحص سريري وأشعة، وقد يتم العلاج بالتقويم أو التركيبات حسب العمر والحالة.'
-  }
+    color: "bg-emerald-100 text-emerald-600",
+    description:
+      "نقص عدد الأسنان يعني عدم ظهور بعض الأسنان الدائمة بسبب عوامل وراثية أو مشاكل في النمو. قد يؤثر على شكل الابتسامة أو ترتيب الأسنان.",
+    symptoms: [
+      "فراغات واضحة بين الأسنان",
+      "تأخر ظهور سن دائم",
+      "اختلاف في ترتيب الأسنان",
+    ],
+    advice:
+      "يحتاج التشخيص إلى فحص سريري وأشعة، وقد يتم العلاج بالتقويم أو التركيبات حسب العمر والحالة.",
+  },
 ];
 
 const supervisors = [
   {
-    name: 'د. أمين السعيد',
-    role: 'مشرف المشروع',
-    icon: GraduationCap
+    name: "د. أمين السعيد",
+    role: "مشرف المشروع",
+    icon: GraduationCap,
   },
   {
-    name: 'د. باسم شتا',
-    role: 'وكيل الكلية',
-    icon: Building2
+    name: "د. باسم شتا",
+    role: "وكيل الكلية",
+    icon: Building2,
   },
   {
-    name: 'اللواء د. أشرف فتحي الشريف',
-    role: 'عميد كلية الهندسة',
-    icon: Crown
-  }
+    name: "اللواء د. أشرف فتحي الشريف",
+    role: "عميد كلية الهندسة",
+    icon: Crown,
+  },
 ];
 
 const developers = [
-  { name: 'عبد الله ياسر', id: '52010774' },
-  { name: 'يوسف حلمي', id: '52010092' },
-  { name: 'أسامة أيمن', id: '52010789' },
-  { name: 'عبد الرحمن رمضان', id: '52010773' },
-  { name: 'أحمد السيد', id: '52010764' }
+  { name: "عبد الله ياسر", id: "52010774" },
+  { name: "يوسف حلمي", id: "52010092" },
+  { name: "أسامة أيمن", id: "52010789" },
+  { name: "عبد الرحمن رمضان", id: "52010773" },
+  { name: "أحمد السيد", id: "52010764" },
 ];
 
 function DiseasesPage() {
@@ -148,9 +184,12 @@ function DiseasesPage() {
           <BookOpenText size={18} />
           مكتبة التوعية الصحية
         </span>
-        <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight">الأمراض الشائعة للأسنان</h2>
+        <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight">
+          الأمراض الشائعة للأسنان
+        </h2>
         <p className="text-lg sm:text-xl text-slate-500 font-medium leading-relaxed">
-          صفحة تعريفية مبسطة تساعد المستخدم على فهم أشهر مشاكل الأسنان وأعراضها، مع نصائح عامة لا تغني عن زيارة طبيب الأسنان.
+          صفحة تعريفية مبسطة تساعد المستخدم على فهم أشهر مشاكل الأسنان وأعراضها،
+          مع نصائح عامة لا تغني عن زيارة طبيب الأسنان.
         </p>
       </div>
 
@@ -163,7 +202,9 @@ function DiseasesPage() {
               className="bg-white p-7 rounded-[2rem] border border-slate-100 shadow-xl space-y-5 hover:translate-y-[-8px] transition-transform"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className={`w-14 h-14 ${disease.color} rounded-2xl flex items-center justify-center shrink-0`}>
+                <div
+                  className={`w-14 h-14 ${disease.color} rounded-2xl flex items-center justify-center shrink-0`}
+                >
                   <Icon size={30} />
                 </div>
                 <span className="px-3 py-1 rounded-full bg-slate-50 text-slate-500 text-[10px] font-black tracking-widest">
@@ -172,8 +213,12 @@ function DiseasesPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-2xl font-black text-slate-900">{disease.title}</h3>
-                <p className="text-slate-500 font-medium leading-relaxed">{disease.description}</p>
+                <h3 className="text-2xl font-black text-slate-900">
+                  {disease.title}
+                </h3>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  {disease.description}
+                </p>
               </div>
 
               <div className="space-y-3">
@@ -183,8 +228,14 @@ function DiseasesPage() {
                 </h4>
                 <ul className="space-y-2">
                   {disease.symptoms.map((symptom) => (
-                    <li key={symptom} className="flex items-start gap-2 text-sm text-slate-600 font-bold leading-relaxed">
-                      <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <li
+                      key={symptom}
+                      className="flex items-start gap-2 text-sm text-slate-600 font-bold leading-relaxed"
+                    >
+                      <CheckCircle2
+                        size={16}
+                        className="text-emerald-500 shrink-0 mt-0.5"
+                      />
                       {symptom}
                     </li>
                   ))}
@@ -192,7 +243,9 @@ function DiseasesPage() {
               </div>
 
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-sm text-slate-600 font-bold leading-relaxed">{disease.advice}</p>
+                <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                  {disease.advice}
+                </p>
               </div>
             </div>
           );
@@ -203,16 +256,22 @@ function DiseasesPage() {
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/10 blur-[100px] rounded-full" />
         <div className="relative z-10 grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
           <div className="space-y-4">
-            <h3 className="text-3xl font-black leading-tight">ملاحظة طبية مهمة</h3>
+            <h3 className="text-3xl font-black leading-tight">
+              ملاحظة طبية مهمة
+            </h3>
             <p className="text-slate-400 text-lg leading-relaxed font-medium">
-              المعلومات الموجودة في هذه الصفحة للتوعية فقط. التشخيص الحقيقي يحتاج إلى فحص سريري وأحيانًا أشعة وتحاليل يحددها الطبيب المختص.
+              المعلومات الموجودة في هذه الصفحة للتوعية فقط. التشخيص الحقيقي
+              يحتاج إلى فحص سريري وأحيانًا أشعة وتحاليل يحددها الطبيب المختص.
             </p>
           </div>
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-start gap-4">
             <Stethoscope size={36} className="text-emerald-400 shrink-0" />
             <div>
               <p className="font-black text-xl">لا تتجاهل الألم المستمر</p>
-              <p className="text-slate-400 font-medium leading-relaxed mt-2">أي ألم شديد أو تورم أو نزيف مستمر يحتاج إلى زيارة طبيب الأسنان في أقرب وقت.</p>
+              <p className="text-slate-400 font-medium leading-relaxed mt-2">
+                أي ألم شديد أو تورم أو نزيف مستمر يحتاج إلى زيارة طبيب الأسنان
+                في أقرب وقت.
+              </p>
             </div>
           </div>
         </div>
@@ -235,17 +294,24 @@ function TeamPage() {
           <Users size={18} />
           فريق العمل والإشراف
         </span>
-        <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight">أعضاء مشروع التخرج</h2>
+        <h2 className="text-4xl sm:text-5xl font-black text-slate-900 leading-tight">
+          أعضاء مشروع التخرج
+        </h2>
         <p className="text-lg sm:text-xl text-slate-500 font-medium leading-relaxed">
-          تم تنفيذ هذا المشروع ضمن مشروعات كلية الهندسة بجامعة الأهرام الكندية، تحت إشراف نخبة من أعضاء هيئة التدريس وإدارة الكلية.
+          تم تنفيذ هذا المشروع ضمن مشروعات كلية الهندسة بجامعة الأهرام الكندية،
+          تحت إشراف نخبة من أعضاء هيئة التدريس وإدارة الكلية.
         </p>
       </div>
 
       <section className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-emerald-600 font-black tracking-widest">تحت إشراف</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-2">القيادة الأكاديمية للمشروع</h3>
+            <p className="text-sm text-emerald-600 font-black tracking-widest">
+              تحت إشراف
+            </p>
+            <h3 className="text-3xl font-black text-slate-900 mt-2">
+              القيادة الأكاديمية للمشروع
+            </h3>
           </div>
           <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-emerald-600 text-white items-center justify-center shadow-lg shadow-emerald-100">
             <GraduationCap size={32} />
@@ -256,12 +322,17 @@ function TeamPage() {
           {supervisors.map((person) => {
             const Icon = person.icon;
             return (
-              <div key={person.name} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl space-y-5 hover:translate-y-[-8px] transition-transform">
+              <div
+                key={person.name}
+                className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl space-y-5 hover:translate-y-[-8px] transition-transform"
+              >
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
                   <Icon size={34} />
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-slate-900 leading-tight">{person.name}</h4>
+                  <h4 className="text-2xl font-black text-slate-900 leading-tight">
+                    {person.name}
+                  </h4>
                   <p className="text-slate-500 font-bold mt-2">{person.role}</p>
                 </div>
               </div>
@@ -275,8 +346,12 @@ function TeamPage() {
         <div className="relative z-10 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <p className="text-sm text-emerald-400 font-black tracking-widest">تم التطوير بواسطة</p>
-              <h3 className="text-3xl sm:text-4xl font-black mt-2">فريق تطوير ACU Dental AI</h3>
+              <p className="text-sm text-emerald-400 font-black tracking-widest">
+                تم التطوير بواسطة
+              </p>
+              <h3 className="text-3xl sm:text-4xl font-black mt-2">
+                فريق تطوير ACU Dental AI
+              </h3>
             </div>
             <div className="px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-300 font-bold text-sm">
               كلية الهندسة - مشروع تخرج 2026
@@ -285,13 +360,20 @@ function TeamPage() {
 
           <div className="grid md:grid-cols-2 gap-5">
             {developers.map((member, index) => (
-              <div key={member.id} className="bg-white/5 backdrop-blur-xl border border-white/10 p-5 rounded-[1.5rem] flex items-center gap-4 hover:bg-white/10 transition-colors">
+              <div
+                key={member.id}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 p-5 rounded-[1.5rem] flex items-center gap-4 hover:bg-white/10 transition-colors"
+              >
                 <div className="w-14 h-14 rounded-2xl bg-white text-slate-900 flex items-center justify-center font-black text-xl shrink-0">
                   {index + 1}
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-xl font-black leading-tight">{member.name}</h4>
-                  <p className="text-slate-400 font-bold mt-1">الرقم الجامعي: {member.id}</p>
+                  <h4 className="text-xl font-black leading-tight">
+                    {member.name}
+                  </h4>
+                  <p className="text-slate-400 font-bold mt-1">
+                    الرقم الجامعي: {member.id}
+                  </p>
                 </div>
                 <BadgeCheck size={24} className="text-emerald-400 shrink-0" />
               </div>
@@ -313,8 +395,12 @@ function PortfolioPage() {
       className="space-y-12"
     >
       <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <h2 className="text-5xl font-black text-slate-900 leading-tight">عن المشروع</h2>
-        <p className="text-xl text-slate-500 font-medium leading-relaxed">نظام هجين مبتكر يجمع بين قوة النماذج العالمية ودقة التدريب المخصص.</p>
+        <h2 className="text-5xl font-black text-slate-900 leading-tight">
+          عن المشروع
+        </h2>
+        <p className="text-xl text-slate-500 font-medium leading-relaxed">
+          نظام هجين مبتكر يجمع بين قوة النماذج العالمية ودقة التدريب المخصص.
+        </p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
@@ -322,8 +408,14 @@ function PortfolioPage() {
           <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
             <Cpu size={32} />
           </div>
-          <h3 className="text-xl font-black text-slate-900">نظام ذكاء اصطناعي هجين</h3>
-          <p className="text-slate-500 font-medium leading-relaxed">يعتمد المشروع على تحليل بصري ذكي للصور، مع إمكانية استخدام نموذج محلي مخصص كخيار داعم عند الحاجة.</p>
+          <h3 className="text-xl font-black text-slate-900">
+            نظام ذكاء اصطناعي هجين
+          </h3>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            لقد قمنا بتطوير بنية تحتية هجينة تستفيد من واجهة برمجة التطبيقات
+            (API) من Gemini لمعالجة اللغات الطبيعية والتحليل البصري validation
+            layer العام, تعمل كا
+          </p>
         </div>
 
         <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl space-y-4 hover:translate-y-[-8px] transition-transform">
@@ -331,15 +423,23 @@ function PortfolioPage() {
             <Database size={32} />
           </div>
           <h3 className="text-xl font-black text-slate-900">تدريب مخصص</h3>
-          <p className="text-slate-500 font-medium leading-relaxed">تم تجهيز نموذج مخصص للتعرف على مجموعة من أمراض الأسنان الشائعة من خلال معالجة الصور الطبية وتحويلها إلى نتائج مفهومة للمستخدم.</p>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            تم تجهيز نموذج مخصص للتعرف على مجموعة من أمراض الأسنان الشائعة من
+            خلال معالجة الصور الطبية وتحويلها إلى نتائج مفهومة للمستخدم.
+          </p>
         </div>
 
         <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl space-y-4 hover:translate-y-[-8px] transition-transform">
           <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
             <ShieldCheck size={32} />
           </div>
-          <h3 className="text-xl font-black text-slate-900">توعية وليس بديلًا للطبيب</h3>
-          <p className="text-slate-500 font-medium leading-relaxed">الهدف من النظام هو المساعدة في الفحص الأولي والتوعية الصحية، ولا يمكن اعتباره تشخيصًا طبيًا نهائيًا دون مراجعة الطبيب المختص.</p>
+          <h3 className="text-xl font-black text-slate-900">
+            توعية وليس بديلًا للطبيب
+          </h3>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            الهدف من النظام هو المساعدة في الفحص الأولي والتوعية الصحية، ولا
+            يمكن اعتباره تشخيصًا طبيًا نهائيًا دون مراجعة الطبيب المختص.
+          </p>
         </div>
       </div>
 
@@ -347,29 +447,41 @@ function PortfolioPage() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full" />
         <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <h3 className="text-4xl font-black leading-tight">رؤيتنا للمستقبل</h3>
+            <h3 className="text-4xl font-black leading-tight">
+              رؤيتنا للمستقبل
+            </h3>
             <p className="text-slate-400 text-lg leading-relaxed font-medium">
-              يهدف هذا المشروع إلى جعل التوعية بصحة الأسنان أسهل وأقرب للمستخدم، من خلال واجهة بسيطة تساعده على فهم الحالة الأولية واتخاذ قرار زيارة الطبيب في الوقت المناسب.
+              يهدف هذا المشروع إلى جعل التوعية بصحة الأسنان أسهل وأقرب للمستخدم،
+              من خلال واجهة بسيطة تساعده على فهم الحالة الأولية واتخاذ قرار
+              زيارة الطبيب في الوقت المناسب.
             </p>
             <div className="flex flex-wrap gap-6 pt-4">
               <div className="text-center">
                 <p className="text-3xl font-black text-emerald-400">AI</p>
-                <p className="text-xs text-slate-500 font-bold uppercase mt-1">تحليل ذكي</p>
+                <p className="text-xs text-slate-500 font-bold uppercase mt-1">
+                  تحليل ذكي
+                </p>
               </div>
               <div className="w-px h-12 bg-slate-800" />
               <div className="text-center">
                 <p className="text-3xl font-black text-emerald-400">7</p>
-                <p className="text-xs text-slate-500 font-bold uppercase mt-1">حالات مدعومة</p>
+                <p className="text-xs text-slate-500 font-bold uppercase mt-1">
+                  حالات مدعومة
+                </p>
               </div>
               <div className="w-px h-12 bg-slate-800" />
               <div className="text-center">
                 <p className="text-3xl font-black text-emerald-400">Hybrid</p>
-                <p className="text-xs text-slate-500 font-bold uppercase mt-1">بنية النظام</p>
+                <p className="text-xs text-slate-500 font-bold uppercase mt-1">
+                  بنية النظام
+                </p>
               </div>
             </div>
           </div>
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] space-y-6">
-            <h4 className="text-xl font-black text-emerald-400">بطاقة المشروع</h4>
+            <h4 className="text-xl font-black text-emerald-400">
+              بطاقة المشروع
+            </h4>
             <ul className="space-y-4">
               <li className="flex items-center justify-between border-b border-white/5 pb-3">
                 <span className="font-bold">نوع المشروع</span>
@@ -401,7 +513,7 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('check');
+  const [activeTab, setActiveTab] = useState<ActiveTab>("check");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -410,12 +522,14 @@ export default function App() {
   const startCamera = async () => {
     try {
       setIsCameraOpen(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
-      setError('تعذر الوصول إلى الكاميرا. يرجى التحقق من الأذونات.');
+      setError("تعذر الوصول إلى الكاميرا. يرجى التحقق من الأذونات.");
       setIsCameraOpen(false);
     }
   };
@@ -423,7 +537,7 @@ export default function App() {
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
     setIsCameraOpen(false);
@@ -435,10 +549,10 @@ export default function App() {
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
+        const dataUrl = canvas.toDataURL("image/jpeg");
         setImage(dataUrl);
         stopCamera();
       }
@@ -482,11 +596,11 @@ export default function App() {
               {
                 inlineData: {
                   mimeType: "image/jpeg",
-                  data: image!.split(',')[1]
-                }
-              }
-            ]
-          }
+                  data: image!.split(",")[1],
+                },
+              },
+            ],
+          },
         ],
         config: {
           responseMimeType: "application/json",
@@ -497,17 +611,23 @@ export default function App() {
               confidence: { type: Type.STRING },
               explanation: { type: Type.STRING },
               treatment: { type: Type.STRING },
-              recommendation: { type: Type.BOOLEAN }
+              recommendation: { type: Type.BOOLEAN },
             },
-            required: ["condition", "confidence", "explanation", "treatment", "recommendation"]
-          }
-        }
+            required: [
+              "condition",
+              "confidence",
+              "explanation",
+              "treatment",
+              "recommendation",
+            ],
+          },
+        },
       });
 
-      const resultData = JSON.parse(response.text || '{}');
+      const resultData = JSON.parse(response.text || "{}");
       return resultData;
     } catch (err: any) {
-      console.warn('Gemini API failed, will try local model:', err.message);
+      // console.warn("Gemini API failed, will try local model:", err.message);
       return null;
     }
   };
@@ -516,24 +636,37 @@ export default function App() {
     try {
       if (!image) return null;
 
-      const blobData = await fetch(image).then(res => res.blob());
+      const API_BASE_URL =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
+      // console.log("🧠 Local model URL:", `${API_BASE_URL}/predict`);
+
+      const blobData = await fetch(image).then((res) => res.blob());
 
       const formData = new FormData();
-      formData.append('file', blobData, 'image.jpg');
+      formData.append("file", blobData, "image.jpg");
 
-      const response = await fetch('http://localhost:5000/predict', {
-        method: 'POST',
-        body: formData
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: "POST",
+        body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`Local model error: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Local model error: ${response.status} - ${errorText}`);
       }
 
       const resultData = await response.json();
-      return resultData;
+
+      return {
+        condition: resultData.condition || "غير محدد",
+        confidence: resultData.confidence || "0",
+        explanation: resultData.explanation || "لم يتم العثور على شرح للحالة.",
+        treatment: resultData.treatment || "يرجى مراجعة طبيب الأسنان.",
+        recommendation: Boolean(resultData.recommendation),
+      };
     } catch (err: any) {
-      console.error('Local model failed:', err.message);
+      // console.error("Local model failed:", err.message);
       return null;
     }
   };
@@ -546,29 +679,29 @@ export default function App() {
     setResult(null);
 
     try {
-      console.log('🔍 Attempting analysis with Gemini API...');
+      // console.log("🔍 Attempting analysis with Gemini API...");
 
       let resultData = await analyzeWithGemini();
 
       if (!resultData) {
-        console.log('⚠️  Gemini failed, switching to local model...');
+        // console.log("⚠️  Gemini failed, switching to local model...");
         resultData = await analyzeWithLocalModel();
       } else {
-        console.log('✅ Analysis successful with Gemini');
+        // console.log("✅ Analysis successful with Gemini");
       }
 
       if (resultData) {
         if (resultData.condition && resultData.confidence !== undefined) {
           setResult(resultData);
         } else {
-          throw new Error('Invalid response format');
+          throw new Error("Invalid response format");
         }
       } else {
-        setError('فشل التحليل في كلا الخيارين. تأكد من أن الصورة واضحة.');
+        setError("فشل التحليل في كلا الخيارين. تأكد من أن الصورة واضحة.");
       }
     } catch (err: any) {
-      console.error('Analysis error:', err);
-      setError('حدث خطأ أثناء التحليل. يرجى المحاولة مرة أخرى.');
+      // console.error("Analysis error:", err);
+      setError("حدث خطأ أثناء التحليل. يرجى المحاولة مرة أخرى.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -582,7 +715,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans" dir="rtl">
+    <div
+      className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans"
+      dir="rtl"
+    >
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -591,8 +727,12 @@ export default function App() {
               <Stethoscope size={28} />
             </div>
             <div>
-              <h1 className="font-black text-xl leading-tight text-slate-900">ACU Dental AI</h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">كلية الهندسة - جامعة الأهرام الكندية</p>
+              <h1 className="font-black text-xl leading-tight text-slate-900">
+                ACU Dental AI
+              </h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                كلية الهندسة - جامعة الأهرام الكندية
+              </p>
             </div>
           </div>
 
@@ -601,7 +741,7 @@ export default function App() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`text-sm font-bold transition-colors ${activeTab === item.id ? 'text-emerald-600' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`text-sm font-bold transition-colors ${activeTab === item.id ? "text-emerald-600" : "text-slate-500 hover:text-slate-800"}`}
               >
                 {item.label}
               </button>
@@ -609,7 +749,9 @@ export default function App() {
           </nav>
 
           <div className="text-left hidden sm:block">
-            <p className="text-[10px] text-slate-400 font-bold uppercase">تحت إشراف</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">
+              تحت إشراف
+            </p>
             <p className="text-sm font-bold text-slate-700">د. أمين السعيد</p>
           </div>
         </div>
@@ -621,7 +763,7 @@ export default function App() {
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`text-xs font-bold px-3 py-2.5 rounded-lg transition-all ${activeTab === item.id ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 bg-slate-50'}`}
+            className={`text-xs font-bold px-3 py-2.5 rounded-lg transition-all ${activeTab === item.id ? "bg-emerald-50 text-emerald-700" : "text-slate-500 bg-slate-50"}`}
           >
             {item.label}
           </button>
@@ -630,7 +772,7 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
         <AnimatePresence mode="wait">
-          {activeTab === 'check' && (
+          {activeTab === "check" && (
             <motion.div
               key="check-tab"
               initial={{ opacity: 0, x: 20 }}
@@ -641,8 +783,13 @@ export default function App() {
               {/* Left Column: Interaction */}
               <section className="space-y-6">
                 <div className="space-y-3">
-                  <h2 className="text-4xl font-black tracking-tight text-slate-900 leading-tight">فحص صحة الأسنان بالذكاء الاصطناعي</h2>
-                  <p className="text-slate-500 text-lg leading-relaxed">قم برفع صورة أو التقاطها الآن للحصول على تحليل فوري ودقيق لحالة أسنانك باستخدام تقنياتنا الهجينة المتطورة.</p>
+                  <h2 className="text-4xl font-black tracking-tight text-slate-900 leading-tight">
+                    فحص صحة الأسنان بالذكاء الاصطناعي
+                  </h2>
+                  <p className="text-slate-500 text-lg leading-relaxed">
+                    قم برفع صورة أو التقاطها الآن للحصول على تحليل فوري ودقيق
+                    لحالة أسنانك باستخدام تقنياتنا الهجينة المتطورة.
+                  </p>
                 </div>
 
                 <div className="relative aspect-square sm:aspect-video lg:aspect-square bg-slate-200 rounded-[2.5rem] overflow-hidden border-2 border-dashed border-slate-300 group transition-all hover:border-emerald-400 shadow-inner">
@@ -659,8 +806,12 @@ export default function App() {
                           <Upload size={40} />
                         </div>
                         <div>
-                          <p className="font-black text-xl text-slate-800">ابدأ الفحص الآن</p>
-                          <p className="text-sm text-slate-500 font-medium">التقط صورة واضحة لمنطقة الألم أو التغيير</p>
+                          <p className="font-black text-xl text-slate-800">
+                            ابدأ الفحص الآن
+                          </p>
+                          <p className="text-sm text-slate-500 font-medium">
+                            التقط صورة واضحة لمنطقة الألم أو التغيير
+                          </p>
                         </div>
                         <div className="flex flex-wrap justify-center gap-4 pt-2">
                           <button
@@ -723,7 +874,11 @@ export default function App() {
                         exit={{ opacity: 0 }}
                         className="absolute inset-0"
                       >
-                        <img src={image!} alt="Preview" className="w-full h-full object-cover" />
+                        <img
+                          src={image!}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
                         <div className="absolute top-6 right-6 flex gap-3">
                           <button
                             onClick={reset}
@@ -751,14 +906,21 @@ export default function App() {
                 {isAnalyzing && (
                   <div className="w-full py-12 flex flex-col items-center justify-center gap-6 bg-white rounded-[2rem] border border-slate-200 shadow-xl">
                     <div className="relative">
-                      <RefreshCw size={48} className="text-emerald-600 animate-spin" />
+                      <RefreshCw
+                        size={48}
+                        className="text-emerald-600 animate-spin"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Brain size={20} className="text-emerald-400" />
                       </div>
                     </div>
                     <div className="text-center">
-                      <p className="font-black text-2xl text-slate-900">جاري تحليل البيانات...</p>
-                      <p className="text-slate-500 font-medium mt-1">نظامنا الهجين يعالج الصورة الآن بأعلى دقة</p>
+                      <p className="font-black text-2xl text-slate-900">
+                        جاري تحليل البيانات...
+                      </p>
+                      <p className="text-slate-500 font-medium mt-1">
+                        نظامنا الهجين يعالج الصورة الآن بأعلى دقة
+                      </p>
                     </div>
                   </div>
                 )}
@@ -789,11 +951,17 @@ export default function App() {
                             <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-700 uppercase tracking-widest">
                               اكتمل التحليل بنجاح
                             </span>
-                            <h3 className="text-3xl font-black text-slate-900 leading-tight">{result.condition}</h3>
+                            <h3 className="text-3xl font-black text-slate-900 leading-tight">
+                              {result.condition}
+                            </h3>
                           </div>
                           <div className="text-left">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">نسبة الدقة</p>
-                            <p className="text-3xl font-black text-emerald-600">{result.confidence}%</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              نسبة الدقة
+                            </p>
+                            <p className="text-3xl font-black text-emerald-600">
+                              {result.confidence}%
+                            </p>
                           </div>
                         </div>
 
@@ -803,23 +971,39 @@ export default function App() {
                               <Info size={20} className="text-emerald-500" />
                               شرح الحالة
                             </h4>
-                            <p className="text-slate-600 leading-relaxed text-lg font-medium">{result.explanation}</p>
+                            <p className="text-slate-600 leading-relaxed text-lg font-medium">
+                              {result.explanation}
+                            </p>
                           </div>
 
                           <div className="space-y-3">
                             <h4 className="flex items-center gap-3 text-sm font-black text-slate-900 uppercase tracking-widest">
-                              <CheckCircle2 size={20} className="text-emerald-600" />
+                              <CheckCircle2
+                                size={20}
+                                className="text-emerald-600"
+                              />
                               العلاج المقترح
                             </h4>
-                            <p className="text-slate-600 leading-relaxed text-lg font-medium">{result.treatment}</p>
+                            <p className="text-slate-600 leading-relaxed text-lg font-medium">
+                              {result.treatment}
+                            </p>
                           </div>
 
                           {result.recommendation && (
                             <div className="p-6 bg-amber-50 border border-amber-100 rounded-[2rem] flex items-start gap-4 shadow-sm">
-                              <AlertCircle size={28} className="text-amber-600 shrink-0 mt-1" />
+                              <AlertCircle
+                                size={28}
+                                className="text-amber-600 shrink-0 mt-1"
+                              />
                               <div>
-                                <p className="text-lg font-black text-amber-900">نصيحة طبية هامة</p>
-                                <p className="text-amber-800 font-medium leading-relaxed">بناءً على التحليل، نوصي بشدة بحجز موعد مع طبيب الأسنان لإجراء فحص سريري دقيق وتجنب أي مضاعفات.</p>
+                                <p className="text-lg font-black text-amber-900">
+                                  نصيحة طبية هامة
+                                </p>
+                                <p className="text-amber-800 font-medium leading-relaxed">
+                                  بناءً على التحليل، نوصي بشدة بحجز موعد مع طبيب
+                                  الأسنان لإجراء فحص سريري دقيق وتجنب أي
+                                  مضاعفات.
+                                </p>
                               </div>
                             </div>
                           )}
@@ -834,7 +1018,9 @@ export default function App() {
                       </div>
                       <div className="bg-slate-900 px-10 py-6">
                         <p className="text-[10px] text-slate-400 text-center uppercase font-bold tracking-[0.2em] leading-relaxed">
-                          إخلاء مسؤولية: هذا التحليل يعتمد على الذكاء الاصطناعي للأغراض التعليمية والمعلوماتية فقط، ولا يغني عن استشارة الطبيب المختص.
+                          إخلاء مسؤولية: هذا التحليل يعتمد على الذكاء الاصطناعي
+                          للأغراض التعليمية والمعلوماتية فقط، ولا يغني عن
+                          استشارة الطبيب المختص.
                         </p>
                       </div>
                     </motion.div>
@@ -844,8 +1030,13 @@ export default function App() {
                         <Stethoscope size={48} />
                       </div>
                       <div>
-                        <p className="font-black text-2xl text-slate-300">في انتظار بياناتك</p>
-                        <p className="text-slate-400 font-medium max-w-[280px] mx-auto mt-2 leading-relaxed">ارفع صورة أسنانك الآن لنبدأ عملية التحليل الهجين المتطور.</p>
+                        <p className="font-black text-2xl text-slate-300">
+                          في انتظار بياناتك
+                        </p>
+                        <p className="text-slate-400 font-medium max-w-[280px] mx-auto mt-2 leading-relaxed">
+                          ارفع صورة أسنانك الآن لنبدأ عملية التحليل الهجين
+                          المتطور.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -854,9 +1045,9 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === 'diseases' && <DiseasesPage />}
-          {activeTab === 'team' && <TeamPage />}
-          {activeTab === 'portfolio' && <PortfolioPage />}
+          {activeTab === "diseases" && <DiseasesPage />}
+          {activeTab === "team" && <TeamPage />}
+          {activeTab === "portfolio" && <PortfolioPage />}
         </AnimatePresence>
       </main>
 
@@ -864,22 +1055,36 @@ export default function App() {
       <footer className="max-w-5xl mx-auto px-4 py-16 border-t border-slate-200">
         <div className="flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="space-y-3 text-center md:text-right">
-            <p className="font-black text-2xl text-slate-900">جامعة الأهرام الكندية (ACU)</p>
-            <p className="text-slate-500 font-bold">كلية الهندسة - مشروع تخرج 2026</p>
+            <p className="font-black text-2xl text-slate-900">
+              جامعة الأهرام الكندية (ACU)
+            </p>
+            <p className="text-slate-500 font-bold">
+              كلية الهندسة - مشروع تخرج 2026
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-8 text-center md:text-left">
             <div>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">إشراف</p>
-              <p className="text-lg font-black text-slate-800">د. أمين السعيد</p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                إشراف
+              </p>
+              <p className="text-lg font-black text-slate-800">
+                د. أمين السعيد
+              </p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">تطوير</p>
-              <p className="text-lg font-black text-slate-800">فريق ACU Dental AI</p>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                تطوير
+              </p>
+              <p className="text-lg font-black text-slate-800">
+                فريق ACU Dental AI
+              </p>
             </div>
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.3em]">جميع الحقوق محفوظة © 2026 - فريق تطوير ACU Dental AI</p>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.3em]">
+            جميع الحقوق محفوظة © 2026 - فريق تطوير ACU Dental AI
+          </p>
         </div>
       </footer>
     </div>
